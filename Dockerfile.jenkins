@@ -1,75 +1,26 @@
-# Jenkins Agent Dockerfile for Avatar API
-# Multi-stage build with Node.js + Docker-in-Docker support
-# Based on node:20-alpine for NestJS compatibility
+FROM jenkins/jenkins:lts
 
-FROM node:20-alpine AS base
+# Switch to root to install Docker
+USER root
 
-# Install system dependencies
-RUN apk add --no-cache \
-    bash \
+# Install Docker CLI
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
     curl \
-    git \
-    openssh-client \
-    openssl \
-    tar \
-    docker-cli \
-    docker-cli-compose \
-    gettext \
-    python3 \
-    make \
-    g++ \
-    && rm -rf /var/cache/apk/*
+    gnupg \
+    lsb-release
 
-# Set working directory
-WORKDIR /app
+# Add Docker's official GPG key
+RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
 
-# Install Jenkins agent requirements
-# Create jenkins user for better security
-RUN addgroup -g 1000 jenkins && \
-    adduser -D -u 1000 -G jenkins jenkins
+# Set up stable repository
+RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-# Install Node.js global packages (required for NestJS)
-RUN npm install -g @nestjs/cli typescript ts-node ts-node-dev
+# Install Docker engine
+RUN apt-get update && apt-get install -y docker-ce-cli
 
-# Add Jenkins user to docker group (for Docker-in-Docker)
-RUN addgroup jenkins docker
-
-# Set up Jenkins agent home
-ENV JENKINS_AGENT_HOME=/home/jenkins/agent
-ENV JENKINS_AGENT_WORKDIR=/app
-
-# Create agent directories
-RUN mkdir -p ${JENKINS_AGENT_HOME} && \
-    chown -R jenkins:jenkins ${JENKINS_AGENT_HOME}
-
-# Switch to jenkins user for the rest of the build
+# Switch back to jenkins user
 USER jenkins
 
-# Copy package files
-COPY --chown=jenkins:jenkins package*.json ./
-COPY --chown=jenkins:jenkins tsconfig*.json ./
-COPY --chown=jenkins:jenkins nest-cli.json ./
-
-# Install npm dependencies (for faster builds)
-RUN npm ci --cache /tmp/npm-cache --prefer-offline
-
-# Add docker socket mounting point
-VOLUME /var/run/docker.sock
-
-# Add agent workspace
-VOLUME ${JENKINS_AGENT_WORKDIR}
-
-# Health check for the agent
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8080/health || exit 1
-
-# Set entrypoint
-ENTRYPOINT ["/bin/bash", "-c"]
-
-# Default command for Jenkins agent
-CMD ["echo 'Jenkins agent is ready for builds' && tail -f /dev/null"]
-
-# Labels for better organization
-LABEL maintainer="DevOps Team"
-LABEL description="Jenkins Agent for NestJS + Prisma applications"
-LABEL version="1.0.0"
+# Install recommended plugins
+RUN jenkins-plugin-cli --plugins blueocean
