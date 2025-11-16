@@ -1,0 +1,85 @@
+# Basic Jenkins Configuration for NestJS - Build & Test Only
+# Minimal CI setup with no deployment and no email notifications
+
+jenkins:
+  systemMessage: 'NestJS Basic CI - Build & Test Only'
+  numExecutors: 2
+  mode: NORMAL
+  scmCheckoutRetryCount: 3
+
+  # Global tool configuration
+  globalNodeProperties:
+    - envVars:
+        envVars:
+          - key: 'NODE_ENV'
+            value: 'test'
+
+  # Security settings
+  security:
+    apiToken:
+      creationOfLegacyTokenEnabled: false
+      generationOfSecretTokenEnabled: true
+
+unclassified:
+  # GitHub integration (basic)
+  gitHubPluginConfig:
+    webhookSecret: '${GITHUB_WEBHOOK_SECRET}'
+
+  # Build configuration
+  buildDiscarders:
+    global:
+      retention:
+        keepBuild: 5
+        keepDeleted: false
+
+  # Build history analyzer
+  buildHistory:
+    maxBuildsInMemory: 25
+
+# Tool configurations
+tools:
+  nodejs:
+    installations:
+      - name: 'NodeJS-20'
+        home: '/usr/local/bin/node'
+        properties:
+          - installSource:
+              installers:
+                - nodeJSInstaller:
+                    id: '20.18.1'
+                    npmPackages:
+                      - name: '@nestjs/cli'
+                        version: 'latest'
+                      - name: 'typescript'
+                        version: 'latest'
+                      - name: 'prisma'
+                        version: 'latest'
+
+# Security realm and authorization strategy
+securityRealm:
+  github:
+    clientID: '${GITHUB_CLIENT_ID}'
+    clientSecret: '${GITHUB_CLIENT_SECRET}'
+
+authorizationStrategy:
+  github:
+    authenticatedUsersReadPermission: true
+    useGithubAuth: true
+
+# Job configuration
+jobs:
+  - type: 'job'
+    properties:
+      - buildDiscarder:
+          strategy:
+            daysToKeep: 3
+            numToKeep: 5
+            artifactDaysToKeep: 7
+            artifactNumToKeep: 3
+      - parameters:
+          - booleanParam:
+              defaultValue: false
+              name: 'SKIP_TESTS'
+              description: 'Skip running tests (NOT RECOMMENDED)'
+      - jenkins.scm.api.metadata:
+          autoRefresh: false

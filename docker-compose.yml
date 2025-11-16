@@ -10,7 +10,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-appuser}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-apppass}
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
@@ -32,7 +32,7 @@ services:
       DATABASE_URL: "postgresql://${POSTGRES_USER:-appuser}:${POSTGRES_PASSWORD:-apppass}@db:5432/${POSTGRES_DB:-appdb}?schema=public"
       PORT: "3000"
       NODE_ENV: "development"
-      RUN_SEED: ${RUN_SEED:-false}
+      RUN_SEED: ${RUN_SEED:-true}
     ports:
       - "3000:3000"
     restart: unless-stopped
