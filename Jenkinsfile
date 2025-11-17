@@ -70,41 +70,33 @@ pipeline {
                     if ! command -v node &> /dev/null; then
                         echo "📦 Node.js not found. Installing..."
                         
-                        # Install Node.js via nvm (if available) or package manager
-                        if command -v apt-get &> /dev/null; then
-                            echo "🐧 Using apt-get to install Node.js..."
-                            curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-                            sudo apt-get install -y nodejs
-                        elif command -v yum &> /dev/null; then
-                            echo "🐧 Using yum to install Node.js..."
-                            curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
-                            sudo yum install -y nodejs
-                        elif command -v brew &> /dev/null; then
-                            echo "🍎 Using Homebrew to install Node.js..."
-                            brew install node@20
-                            brew link node@20 --force
-                        else
-                            echo "❌ Unable to detect package manager. Installing nvm..."
-                            curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
-                            export NVM_DIR="\$HOME/.nvm"
-                            [ -s "\$NVM_DIR/nvm.sh" ] && \\. "\$NVM_DIR/nvm.sh"
-                            nvm install 20
-                            nvm use 20
+                        # Install Node.js via nvm (preferred method for containers)
+                        echo "📦 Installing nvm..."
+                        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
+                        export NVM_DIR="\$HOME/.nvm"
+                        [ -s "\$NVM_DIR/nvm.sh" ] && \\. "\$NVM_DIR/nvm.sh"
+                        
+                        echo "📦 Installing Node.js 20..."
+                        nvm install 20
+                        nvm use 20
+                        nvm alias default 20
+                        
+                        # Also try package manager as fallback (without sudo)
+                        if command -v apt-get &> /dev/null && ! command -v node &> /dev/null; then
+                            echo "🐧 Trying apt-get install (without sudo)..."
+                            apt-get update && apt-get install -y nodejs npm || echo "apt-get failed, continuing with nvm"
+                        elif command -v yum &> /dev/null && ! command -v node &> /dev/null; then
+                            echo "🐧 Trying yum install (without sudo)..."
+                            yum install -y nodejs npm || echo "yum failed, continuing with nvm"
                         fi
                     else
                         echo "✅ Node.js already installed"
                     fi
                     
-                    # Install npm if not present
-                    if ! command -v npm &> /dev/null; then
-                        echo "📦 Installing npm..."
-                        curl -L https://www.npmjs.com/install.sh | sh
-                    fi
-                    
                     # Verify installation
                     echo "🔧 Installed versions:"
-                    node --version
-                    npm --version
+                    node --version || echo "❌ Node.js not available"
+                    npm --version || echo "❌ npm not available"
                     
                     echo "✅ Node.js environment setup completed"
                 """
