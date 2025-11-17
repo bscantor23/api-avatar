@@ -4,9 +4,7 @@
 // Purpose: Build, test, and containerize NestJS application locally
 
 pipeline {
-    agent {
-        any
-    }
+    agent none
     
     options {
         skipStagesAfterUnstable()
@@ -46,6 +44,7 @@ pipeline {
     
     stages {
         stage('Checkout Source') {
+            agent any
             steps {
                 echo "📥 Checking out source code..."
                 checkout scm
@@ -63,19 +62,71 @@ pipeline {
             }
         }
         
+        stage('Setup Node.js Environment') {
+            agent any
+            steps {
+                echo "🔧 Setting up Node.js environment..."
+                
+                sh """
+                    # Check if Node.js is already installed
+                    if ! command -v node &> /dev/null; then
+                        echo "📦 Node.js not found. Installing..."
+                        
+                        # Install Node.js via nvm (if available) or package manager
+                        if command -v apt-get &> /dev/null; then
+                            echo "🐧 Using apt-get to install Node.js..."
+                            curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+                            sudo apt-get install -y nodejs
+                        elif command -v yum &> /dev/null; then
+                            echo "🐧 Using yum to install Node.js..."
+                            curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
+                            sudo yum install -y nodejs
+                        elif command -v brew &> /dev/null; then
+                            echo "🍎 Using Homebrew to install Node.js..."
+                            brew install node@20
+                            brew link node@20 --force
+                        else
+                            echo "❌ Unable to detect package manager. Installing nvm..."
+                            curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
+                            export NVM_DIR="\$HOME/.nvm"
+                            [ -s "\$NVM_DIR/nvm.sh" ] && \\. "\$NVM_DIR/nvm.sh"
+                            nvm install 20
+                            nvm use 20
+                        fi
+                    else
+                        echo "✅ Node.js already installed"
+                    fi
+                    
+                    # Install npm if not present
+                    if ! command -v npm &> /dev/null; then
+                        echo "📦 Installing npm..."
+                        curl -L https://www.npmjs.com/install.sh | sh
+                    fi
+                    
+                    # Verify installation
+                    echo "🔧 Installed versions:"
+                    node --version
+                    npm --version
+                    
+                    echo "✅ Node.js environment setup completed"
+                """
+            }
+        }
+        
         stage('Install Dependencies') {
             when {
                 expression { params.ACTION == 'test-build' || params.ACTION == 'build-push' }
             }
-            agent {
-                docker {
-                    image 'node:20-alpine'
-                    args '-v /var/run/docker.sock:/var/run/docker.sock'
-                }
-            }
+            agent any
             steps {
                 echo "📦 Installing Node.js dependencies..."
                 sh """
+                    # Ensure Node.js is available (source nvm if needed)
+                    export NVM_DIR="\$HOME/.nvm"
+                    [ -s "\$NVM_DIR/nvm.sh" ] && \\. "\$NVM_DIR/nvm.sh"
+                    [ -s /opt/nvm/nvm.sh ] && \\. /opt/nvm/nvm.sh
+                    nvm use 20 2>/dev/null || true
+                    
                     echo "🔧 Using Node.js version:"
                     node --version
                     npm --version
@@ -98,15 +149,16 @@ pipeline {
                     expression { !params.SKIP_TESTS }
                 }
             }
-            agent {
-                docker {
-                    image 'node:20-alpine'
-                    args '-v /var/run/docker.sock:/var/run/docker.sock'
-                }
-            }
+            agent any
             steps {
                 echo "🧪 Running tests..."
                 sh """
+                    # Ensure Node.js is available (source nvm if needed)
+                    export NVM_DIR="\$HOME/.nvm"
+                    [ -s "\$NVM_DIR/nvm.sh" ] && \\. "\$NVM_DIR/nvm.sh"
+                    [ -s /opt/nvm/nvm.sh ] && \\. /opt/nvm/nvm.sh
+                    nvm use 20 2>/dev/null || true
+                    
                     echo "🧪 Running unit tests..."
                     npm run test
                     
@@ -127,15 +179,16 @@ pipeline {
             when {
                 expression { params.ACTION == 'test-build' || params.ACTION == 'build-push' }
             }
-            agent {
-                docker {
-                    image 'node:20-alpine'
-                    args '-v /var/run/docker.sock:/var/run/docker.sock'
-                }
-            }
+            agent any
             steps {
                 echo "🔨 Building NestJS application..."
                 sh """
+                    # Ensure Node.js is available (source nvm if needed)
+                    export NVM_DIR="\$HOME/.nvm"
+                    [ -s "\$NVM_DIR/nvm.sh" ] && \\. "\$NVM_DIR/nvm.sh"
+                    [ -s /opt/nvm/nvm.sh ] && \\. /opt/nvm/nvm.sh
+                    nvm use 20 2>/dev/null || true
+                    
                     echo "🔨 Compiling TypeScript..."
                     npm run build
                     
@@ -148,6 +201,7 @@ pipeline {
         }
         
         stage('Build Docker Image') {
+            agent any
             steps {
                 echo "🐳 Building Docker image..."
                 
@@ -188,6 +242,7 @@ pipeline {
             when {
                 expression { params.ACTION == 'test-build' }
             }
+            agent any
             steps {
                 echo "🚀 Testing local deployment..."
                 
@@ -221,6 +276,7 @@ pipeline {
             when {
                 expression { params.ACTION == 'build-push' && params.REGISTRY != '' }
             }
+            agent any
             steps {
                 echo "📤 Pushing Docker image to registry..."
                 
