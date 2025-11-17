@@ -229,110 +229,39 @@ pipeline {
         
         stage('Start Database') {
             steps {
-                echo "🗄️ Starting PostgreSQL database..."
-                
-                script {
-                    sh """
-                        echo "🐳 Starting database container with docker compose..."
-                        
-                        # Stop and remove existing database container if running
-                        docker compose down db 2>/dev/null || true
-                        
-                        # Start only the database service
-                        docker compose up -d db
-                        
-                        echo "⏱️ Waiting for database to be healthy..."
-                        timeout=60
-                        elapsed=0
-                        while [ \$elapsed -lt \$timeout ]; do
-                            if docker compose ps db | grep -q "healthy"; then
-                                echo "✅ Database is healthy and ready"
-                                break
-                            fi
-                            echo "⏳ Waiting for database... (\${elapsed}s/\${timeout}s)"
-                            sleep 5
-                            elapsed=\$((elapsed + 5))
-                        done
-                        
-                        if [ \$elapsed -ge \$timeout ]; then
-                            echo "⚠️ Database health check timeout, but continuing..."
-                        fi
-                        
-                        # Show database status
-                        echo "📊 Database container status:"
-                        docker compose ps db
-                        
-                        echo "✅ Database stage completed"
-                    """
-                }
+                echo "🗄️ Starting PostgreSQL database with docker-compose..."
+                sh """
+                    docker-compose up -d db
+
+                    echo "⏱ Waiting for DB to be healthy..."
+                    for i in {1..20}; do
+                        docker exec postgres_db pg_isready -U appuser -d appdb && break
+                        sleep 3
+                    done
+
+                    docker ps | grep postgres_db
+                """
             }
         }
         
         stage('Build and Start API') {
             steps {
-                echo "🐳 Building and starting API..."
-                
-                script {
-                    def imageTag = params.TAG ?: 'latest'
-                    def fullTag = "${IMAGE_NAME}:${imageTag}"
+                echo "🐳 Building and starting API with docker-compose..."
+                sh """
+                    docker-compose up -d --build api
+
+                    echo "⏱ Waiting for API to be healthy..."
+                    for i in {1..30}; do
+                        docker exec nest_api node -e "require('http').get('http://localhost:3000', res=>{process.exit(res.statusCode<400?0:1)}).on('error', ()=>process.exit(1))" && break
+                        sleep 3
+                    done
+
+                    echo "📊 Services status:"
+                    docker-compose ps
                     
-                    sh """
-                        echo "🔨 Building API image with docker compose..."
-                        docker compose build api
-                        
-                        echo "🚀 Starting API service..."
-                        docker compose up -d api
-                        
-                        echo "⏱️ Waiting for API to be healthy..."
-                        timeout=60
-                        elapsed=0
-                        while [ \$elapsed -lt \$timeout ]; do
-                            if docker compose ps api | grep -q "healthy"; then
-                                echo "✅ API is healthy and ready"
-                                break
-                            fi
-                            echo "⏳ Waiting for API... (\${elapsed}s/\${timeout}s)"
-                            sleep 5
-                            elapsed=\$((elapsed + 5))
-                        done
-                        
-                        if [ \$elapsed -ge \$timeout ]; then
-                            echo "⚠️ API health check timeout, checking logs..."
-                            docker compose logs --tail=50 api
-                        fi
-                        
-                        echo "📊 Services status:"
-                        docker compose ps
-                        
-                        echo "✅ API is running"
-                    """
-                    
-                    echo "📊 Build Information:"
-                    echo "  - Image Name: ${env.IMAGE_NAME}"
-                    echo "  - Tag: ${imageTag}"
-                    echo "  - Build Number: ${env.BUILD_NUMBER}"
-                    echo "  - Git Commit: ${env.GIT_COMMIT}"
-                    echo "  - Git Branch: ${env.GIT_BRANCH}"
-                    echo "  - Action: ${params.ACTION}"
-                }
-            }
-        }
-        
-        stage('Run Database Migrations and Seed') {
-            steps {
-                echo "🌱 Running database migrations and seed..."
-                
-                script {
-                    sh """
-                        echo "🔄 Running Prisma migrations..."
-                        docker compose exec -T api npx prisma migrate deploy || echo "⚠️ Migrations may have already been applied"
-                        
-                        echo "🌱 Running Prisma seed..."
-                        docker compose exec -T api npm run prisma:seed:prod || echo "⚠️ Seed may have already been applied"
-                        
-                        echo "✅ Database setup completed"
-                    """
-                }
+                    echo "📋 API logs (migrations and seed):"
+                    docker-compose logs --tail=50 api
+                """
             }
         }
         
