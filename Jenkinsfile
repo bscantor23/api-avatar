@@ -5,10 +5,7 @@
 
 pipeline {
     agent {
-        docker {
-            image 'node:20-alpine'
-            args '-v /var/run/docker.sock:/var/run/docker.sock'
-        }
+        any
     }
     
     options {
@@ -70,6 +67,12 @@ pipeline {
             when {
                 expression { params.ACTION == 'test-build' || params.ACTION == 'build-push' }
             }
+            agent {
+                docker {
+                    image 'node:20-alpine'
+                    args '-v /var/run/docker.sock:/var/run/docker.sock'
+                }
+            }
             steps {
                 echo "📦 Installing Node.js dependencies..."
                 sh """
@@ -95,6 +98,12 @@ pipeline {
                     expression { !params.SKIP_TESTS }
                 }
             }
+            agent {
+                docker {
+                    image 'node:20-alpine'
+                    args '-v /var/run/docker.sock:/var/run/docker.sock'
+                }
+            }
             steps {
                 echo "🧪 Running tests..."
                 sh """
@@ -117,6 +126,12 @@ pipeline {
         stage('Build Application') {
             when {
                 expression { params.ACTION == 'test-build' || params.ACTION == 'build-push' }
+            }
+            agent {
+                docker {
+                    image 'node:20-alpine'
+                    args '-v /var/run/docker.sock:/var/run/docker.sock'
+                }
             }
             steps {
                 echo "🔨 Building NestJS application..."
