@@ -253,6 +253,64 @@ EOFSCRIPT
             }
         }
         
+        stage('Manage Containers') {
+            steps {
+                echo "🔍 Checking container status and reloading if needed..."
+                sh """
+                    # Ensure docker-compose is in PATH
+                    export PATH="/tmp:\$PATH"
+                    
+                    # Function to check if container is running and reload if needed
+                    check_and_reload_container() {
+                        local container_name=\$1
+                        echo "🔍 Checking container: \$container_name"
+                        
+                        # Check if container exists and is running
+                        if docker ps --format '{{.Names}}' | grep -q "^\${container_name}\$"; then
+                            echo "✅ Container \$container_name is running"
+                            echo "🔄 Reloading container \$container_name..."
+                            
+                            # Restart the container
+                            docker restart "\$container_name" 2>/dev/null || {
+                                echo "⚠️ Failed to restart \$container_name, trying to recreate..."
+                                docker stop "\$container_name" 2>/dev/null || true
+                                docker rm "\$container_name" 2>/dev/null || true
+                            }
+                            
+                            echo "✅ Container \$container_name reloaded"
+                        else
+                            echo "ℹ️ Container \$container_name is not running"
+                            
+                            # Check if container exists but is stopped
+                            if docker ps -a --format '{{.Names}}' | grep -q "^\${container_name}\$"; then
+                                echo "🔄 Container \$container_name exists but is stopped, starting it..."
+                                docker start "\$container_name" 2>/dev/null || {
+                                    echo "⚠️ Failed to start \$container_name, it may need to be recreated"
+                                }
+                            else
+                                echo "📝 Container \$container_name does not exist and will be created by docker-compose"
+                            fi
+                        fi
+                    }
+                    
+                    # Check main containers
+                    check_and_reload_container "postgres_db"
+                    check_and_reload_container "nest_api"
+                    
+                    # Handle test container if it exists
+                    if docker ps -a --format '{{.Names}}' | grep -q "^avatar-api-test\$"; then
+                        check_and_reload_container "avatar-api-test"
+                    fi
+                    
+                    echo "✅ Container status check and reload completed"
+                    
+                    # Show current container status
+                    echo "📋 Current container status:"
+                    docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}'
+                """
+            }
+        }
+        
         stage('Start Database') {
             steps {
                 echo "🗄️ Starting PostgreSQL database..."
