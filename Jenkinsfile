@@ -121,9 +121,7 @@ pipeline {
                 """
                 
                 // Publicar resultados de tests
-                publishTestResults([
-                    testResultsPattern: 'coverage/junit.xml'
-                ])
+                junit testResults: 'coverage/junit.xml', allowEmptyResults: true
             }
         }
     }
