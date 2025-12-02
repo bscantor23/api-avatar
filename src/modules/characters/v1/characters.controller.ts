@@ -36,7 +36,7 @@ export class CharactersController {
         _page,
         _limit,
       );
-    } catch (error) {
+    } catch {
       throw new HttpException(
         'Error processing',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -51,7 +51,7 @@ export class CharactersController {
         id,
         Utils.getUrlPath(request),
       );
-    } catch (error) {
+    } catch {
       throw new HttpException(
         'Error processing',
         HttpStatus.INTERNAL_SERVER_ERROR,
