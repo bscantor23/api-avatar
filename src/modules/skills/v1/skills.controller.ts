@@ -36,7 +36,7 @@ export class SkillsController {
         _page,
         _limit,
       );
-    } catch {
+    } catch (error) {
       throw new HttpException(
         'Error processing',
         HttpStatus.INTERNAL_SERVER_ERROR,

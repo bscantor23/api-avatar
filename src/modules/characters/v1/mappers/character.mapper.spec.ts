@@ -4,7 +4,7 @@ import { SkillType, CharacterType } from '../../../../constants';
 // Mock SkillsMapper and RelationsMapper used by CharacterMapper
 jest.mock('../../../skills/v1/mappers', () => ({
   SkillsMapper: {
-    mapList: (skills: any[]) => skills.map((s) => `${s.name}_mapped`),
+    mapList: (skills: any[], _host: string) => skills.map((s) => `${s.name}_mapped`),
   },
 }));
 

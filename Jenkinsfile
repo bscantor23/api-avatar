@@ -1,8 +1,5 @@
 #!/usr/bin/env groovy
 
-// Simple Jenkins Pipeline for NestJS API with Webhooks
-// Purpose: Build and test NestJS application triggered by GitHub webhooks
-
 pipeline {
     agent any
     
@@ -121,7 +118,9 @@ pipeline {
                 """
                 
                 // Publicar resultados de tests
-                junit testResults: 'coverage/junit.xml', allowEmptyResults: true
+                publishTestResults([
+                    testResultsPattern: 'coverage/junit.xml'
+                ])
             }
         }
     }
