@@ -55,7 +55,10 @@ describe('CharacterMapper', () => {
   });
 
   it('mapList maps multiple characters', () => {
-    const list = [sampleCharacter, { ...sampleCharacter, id: 'c2', name: 'Name2' } as any];
+    const list = [
+      sampleCharacter,
+      { ...sampleCharacter, id: 'c2', name: 'Name2' } as any,
+    ];
     const mappedList = CharacterMapper.mapList(list, host as any);
     expect(mappedList).toHaveLength(2);
     expect(mappedList[0].id).toBe('c1');
