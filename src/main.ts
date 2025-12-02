@@ -15,7 +15,7 @@ async function bootstrap() {
 
   const documentFactory = () => SwaggerModule.createDocument(app, config);
 
-  SwaggerModule.setup('swagger', app, documentFactory);
+  SwaggerModule.setup('api', app, documentFactory);
 
   app.enableVersioning({
     type: VersioningType.URI,
