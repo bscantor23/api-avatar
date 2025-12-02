@@ -22,6 +22,20 @@ services:
       timeout: 10s
       retries: 3
 
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: ngrok
+    ports:
+      - "4040:4040"  # Web interface
+    command: "http jenkins:8080"
+    depends_on:
+      - jenkins
+    env_file:
+      - .env
+    environment:
+      - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
+    restart: unless-stopped
+
 volumes:
   jenkins_home:
     driver: local
